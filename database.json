@@ -1,0 +1,11 @@
+{
+    "dev": {
+      "driver": "pg",
+      "user": "elsa",
+      "password": "elsapw",
+      "host": "localhost",
+      "database": "elsa",
+      "port": "5432",
+      "schema": "public"
+    }
+  }

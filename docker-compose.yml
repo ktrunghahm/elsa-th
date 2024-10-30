@@ -1,0 +1,35 @@
+services:
+  postgres:
+    container_name: postgres_elsa_container
+    image: postgres
+    environment:
+      POSTGRES_USER: elsa
+      POSTGRES_PASSWORD: elsapw
+      PGDATA: /data/postgres
+    volumes:
+       - postgres:/data/postgres
+       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - postgres
+    restart: unless-stopped
+  redis:
+    container_name: redis_elsa_container
+    image: docker.io/bitnami/redis:7.4
+    environment:
+      - REDIS_PASSWORD=elsapw
+      - REDIS_DISABLE_COMMANDS=FLUSHDB,FLUSHALL
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'redis_data:/redis/data'
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+    postgres:
+    redis_data:
+      driver: local
