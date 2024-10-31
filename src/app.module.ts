@@ -6,12 +6,13 @@ import { AuthenModule } from './authen/authen.module';
 import { QuizModule } from './quiz/quiz.module';
 import { Quiz } from './quiz/model/quiz';
 import { QuizTaking } from './quiz/model/quizTaking';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
     AuthenModule,
     QuizModule,
-    ConfigModule.forRoot({ load: [configuration] }),
+    ConfigModule.forRoot({ load: [configuration], isGlobal: true }),
     SequelizeModule.forRoot({
       dialect: 'postgres',
       host: configuration().dbHost,

@@ -63,6 +63,11 @@ export class UserQuizController {
     return await this.quizService.getQuizByUser(quizId, session.user.email);
   }
 
+  @Get(':quizId/online-count')
+  async getOnlineCountForQuiz(@Param('quizId', new ParseUUIDPipe()) quizId: UUID) {
+    return { count: await this.quizService.onlineCountForQuiz(quizId) };
+  }
+
   @Get('taking')
   async listTakingQuizzesForUser(@Session() session: RequestSession) {
     return await this.quizService.listTakingQuizzesForUser(session.user.email);

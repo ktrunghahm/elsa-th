@@ -1,22 +1,42 @@
-import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
 import { randomUUID, UUID } from 'crypto';
+import Redis from 'ioredis';
+import { throttle } from 'lodash';
+import { Transaction } from 'sequelize';
+import { Sequelize } from 'sequelize-typescript';
+import { IllegalActionError } from 'src/common/error';
+import { QUESTION_ANSWERED } from 'src/common/redis';
+import { Leaderboard, leaderboardContentSchema } from './model/leaderboard';
 import { Quiz, QuizContentType } from './model/quiz';
 import { AnswerQuizQuestionActionType, QuizTaking } from './model/quizTaking';
-import { Sequelize } from 'sequelize-typescript';
-import { Transaction } from 'sequelize';
-import { IllegalActionError } from 'src/common/error';
-import { Leaderboard, leaderboardContentSchema } from './model/leaderboard';
 import { LEADERBOARD_LIMIT } from './quiz.constants';
+import { Cache } from '@nestjs/cache-manager';
 
 @Injectable()
 export class QuizService {
+  redisClient: Redis;
+  private readonly logger = new Logger(QuizService.name);
+  public connectedWSClientCount = 0;
+
+  public requestLeaderBoardUpdate: typeof this.updateLeaderBoard;
+
   constructor(
     @InjectModel(Quiz) private quizModel: typeof Quiz,
     @InjectModel(QuizTaking) private quizTakingModel: typeof QuizTaking,
     @InjectModel(Leaderboard) private leaderboardModel: typeof Leaderboard,
     private sequelize: Sequelize,
-  ) {}
+    private configService: ConfigService,
+    private cacheManager: Cache,
+  ) {
+    this.redisClient = new Redis({
+      host: configService.get('redisHost'),
+      port: configService.get('redisPort'),
+      password: configService.get('redisPassword'),
+    });
+    this.requestLeaderBoardUpdate = throttle(this.updateLeaderBoard, 1000, { trailing: true });
+  }
 
   async listQuizzes() {
     return await this.quizModel.findAll({ limit: 100, order: [['createdAt', 'DESC']] });
@@ -29,7 +49,7 @@ export class QuizService {
   async createQuiz(name: string, content: QuizContentType) {
     const result = await this.sequelize.transaction(async (transaction) => {
       const id = randomUUID();
-      const [quiz] = await Promise.all([
+      const [quiz, redisRes] = await Promise.all([
         this.quizModel.create(
           {
             id,
@@ -40,6 +60,7 @@ export class QuizService {
         ),
         this.leaderboardModel.create({ quizId: id, content: leaderboardContentSchema.parse([]) }, { transaction }),
       ]);
+
       return quiz;
     });
     return result;
@@ -57,6 +78,7 @@ export class QuizService {
         quizId,
         answers: {},
         totalScore: 0,
+        attemptCount: 0,
       },
     });
   }
@@ -92,6 +114,7 @@ export class QuizService {
             ...quizTaking.answers,
             [answerQuizQuestionActionDto.questionIndex]: answerQuizQuestionActionDto.selectedAnswerIndex,
           });
+          quizTaking.set('attemptCount', quizTaking.attemptCount + 1);
 
           const correct = Boolean(
             quiz.content.questions[answerQuizQuestionActionDto.questionIndex]?.options[
@@ -104,10 +127,11 @@ export class QuizService {
           }
 
           await quizTaking.save({ transaction });
-
           return { newTotalScore, correct };
         },
       );
+      const listeners = await this.redisClient.publish(quizId, QUESTION_ANSWERED);
+      this.logger.log(listeners);
       return result;
     } catch (error) {
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
@@ -133,6 +157,7 @@ export class QuizService {
 
       // strip off the answer property in each question's options when the question is not yet answered
       quiz: {
+        name: quizTaking.quiz.name,
         content: {
           questions: quizTaking.quiz.content.questions.map((question, i) => ({
             text: question.text,
@@ -176,7 +201,11 @@ export class QuizService {
   async updateLeaderBoard(quizId: UUID) {
     const quizTakings = await this.quizTakingModel.findAll({
       where: { quizId },
-      order: [['totalScore', 'DESC']],
+      order: [
+        ['totalScore', 'DESC'],
+        ['attemptCount', 'ASC'],
+        ['updatedAt', 'ASC'],
+      ],
       limit: LEADERBOARD_LIMIT,
     });
 
@@ -195,5 +224,20 @@ export class QuizService {
   async getLeaderBoard(quizId: UUID) {
     const result = await this.leaderboardModel.findByPk(quizId);
     return result;
+  }
+
+  async onlineCountForQuiz(quizId: UUID) {
+    const key = `online-count ${quizId}`;
+    const fromCache = await this.cacheManager.get(key);
+    if (fromCache != null) {
+      return Number(fromCache);
+    }
+    const retval = await this.redisClient.publish(quizId, 'count listeners');
+    this.cacheManager.set(key, retval, 5000);
+    return retval;
+  }
+
+  changeConnectedWSClientCount(diff: number) {
+    this.connectedWSClientCount += diff;
   }
 }

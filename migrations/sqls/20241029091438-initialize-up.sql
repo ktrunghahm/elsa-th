@@ -10,12 +10,13 @@ CREATE TABLE quiz
 
 CREATE TABLE quiz_taking
 (
-    quiz_id     UUID NOT NULL,
-    user_email  VARCHAR(255) NOT NULL,
-    answers     JSON NOT NULL,
-    total_score INT NOT NULL,
-    created_at  TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL,
+    quiz_id         UUID NOT NULL,
+    user_email      VARCHAR(255) NOT NULL,
+    answers         JSON NOT NULL,
+    total_score     INT NOT NULL,
+    attempt_count   INT NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE NOT NULL,
+    updated_at      TIMESTAMP WITH TIME ZONE NOT NULL,
     PRIMARY KEY (quiz_id, user_email),
     CONSTRAINT fk_quiz_taking_quiz_id FOREIGN KEY (quiz_id) REFERENCES quiz(id) ON UPDATE CASCADE ON DELETE CASCADE
 );

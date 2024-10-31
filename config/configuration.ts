@@ -4,4 +4,7 @@ export default () => ({
   dbUsername: 'elsa',
   dbPassword: 'elsapw',
   dbName: 'elsa',
+  redisHost: 'localhost',
+  redisPort: 6379,
+  redisPassword: 'elsapw',
 });

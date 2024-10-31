@@ -50,6 +50,11 @@ export class AdminQuizController {
   async listQuizzes() {
     return await this.quizService.listQuizzes();
   }
+
+  @Get('total-connected-ws-client')
+  getTotalConnectedWSClient() {
+    return { count: this.quizService.connectedWSClientCount };
+  }
 }
 
 function fakeQuizContent(): QuizContentType {

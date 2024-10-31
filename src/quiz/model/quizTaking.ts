@@ -1,15 +1,5 @@
 import { UUID } from 'crypto';
-import {
-  Column,
-  CreatedAt,
-  DataType,
-  ForeignKey,
-  HasOne,
-  Model,
-  PrimaryKey,
-  Table,
-  UpdatedAt,
-} from 'sequelize-typescript';
+import { Column, CreatedAt, DataType, HasOne, Model, PrimaryKey, Table, UpdatedAt } from 'sequelize-typescript';
 import { z } from 'zod';
 import { Quiz } from './quiz';
 
@@ -24,6 +14,7 @@ type QuizTakingAttributes = {
   userEmail: string;
   answers: Record<number, number>;
   totalScore: number;
+  attemptCount: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -48,6 +39,9 @@ export class QuizTaking extends Model<QuizTakingAttributes, CreateQuizTakingAttr
 
   @Column
   totalScore: number;
+
+  @Column
+  attemptCount: number;
 
   @CreatedAt
   createdAt: Date;
