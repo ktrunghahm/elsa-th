@@ -90,6 +90,7 @@ export class QuizService {
         throw new NotFoundException(`Cannot find quizId: ${quizId}`);
       }
 
+      // Ensure we lock the record when we update with this isolation level transaction
       const result = await this.sequelize.transaction(
         {
           isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ,
@@ -99,6 +100,7 @@ export class QuizService {
           const quizTaking = await this.quizTakingModel.findOne({
             where: { quizId, userEmail },
             transaction,
+            // ensure the read is marked as SELECT FOR UPDATE to avoid dead lock
             lock: { level: transaction.LOCK.UPDATE, of: QuizTaking },
           });
 
@@ -131,7 +133,7 @@ export class QuizService {
         },
       );
       const listeners = await this.redisClient.publish(quizId, QUESTION_ANSWERED);
-      this.logger.log(listeners);
+      this.logger.log('Active count ' + listeners);
       return result;
     } catch (error) {
       throw new HttpException(error, HttpStatus.INTERNAL_SERVER_ERROR);
