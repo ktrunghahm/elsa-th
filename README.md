@@ -32,13 +32,24 @@
 $ npm install
 ```
 
+## Docker env setup for dependent services
+
+```bash
+# spin PostGRES and Redis instances
+$ docker-compose up
+
+# initialize SQL schema in PostGRES
+$ ./node_modules/db-migrate/bin/db-migrate up
+
+```
+
 ## Compile and run the project
 
 ```bash
 # development
 $ npm run start
 
-# watch mode
+# watch mode (RECOMMENDED for demo)
 $ npm run start:dev
 
 # production mode
