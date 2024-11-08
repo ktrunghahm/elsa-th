@@ -1,11 +1,12 @@
 import { UUID } from 'crypto';
+import { createZodDto } from 'nestjs-zod';
 import { Column, DataType, Model, PrimaryKey, Table, UpdatedAt } from 'sequelize-typescript';
 import { z } from 'zod';
 
 export const leaderboardContentSchema = z.array(
   z.object({ userEmail: z.string(), totalScore: z.number(), answeredQuestions: z.number() }),
 );
-export type LeaderboardContentType = z.infer<typeof leaderboardContentSchema>;
+export class LeaderboardContentType extends createZodDto(leaderboardContentSchema) {}
 
 type LeaderboardAttributes = {
   quizId: UUID;

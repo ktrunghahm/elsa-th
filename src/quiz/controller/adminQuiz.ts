@@ -12,11 +12,13 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ZodValidationPipe } from 'src/common/zodUtils';
-import { createQuizReqSchema, CreateQuizReqType, Quiz, QuizContentType } from '../model/quiz';
+import { createQuizReqSchema, CreateQuizReqType, Quiz, QuizContentType } from '../model/quiz.entity';
 import { QuizService } from '../quiz.service';
 import { faker } from '@faker-js/faker';
 import { DatabaseError } from 'sequelize';
 import { UUID } from 'crypto';
+import { ApiCreatedResponse, ApiOkResponse } from '@nestjs/swagger';
+import { SimpleCountResponse, SimpleSuccessResponse } from '../../common/types.dto';
 
 @Controller('admin/quiz')
 export class AdminQuizController {
@@ -24,6 +26,7 @@ export class AdminQuizController {
 
   @Post('')
   @HttpCode(201)
+  @ApiCreatedResponse({ type: Quiz })
   @UsePipes(new ZodValidationPipe(createQuizReqSchema))
   async createQuiz(@Body() createQuizReqDto: CreateQuizReqType): Promise<Quiz> {
     try {
@@ -41,19 +44,22 @@ export class AdminQuizController {
   }
 
   @Delete(':quizId')
+  @ApiOkResponse({ type: SimpleSuccessResponse })
   async deleteQuiz(@Param('quizId', new ParseUUIDPipe()) quizId: UUID) {
     const result = await this.quizService.deleteQuiz(quizId);
-    return result;
+    return new SimpleSuccessResponse(result > 0);
   }
 
   @Get('')
+  @ApiOkResponse({ type: Quiz, isArray: true })
   async listQuizzes() {
     return await this.quizService.listQuizzes();
   }
 
   @Get('total-connected-ws-client')
+  @ApiOkResponse({ type: SimpleCountResponse })
   getTotalConnectedWSClient() {
-    return { count: this.quizService.connectedWSClientCount };
+    return new SimpleCountResponse(this.quizService.connectedWSClientCount);
   }
 }
 

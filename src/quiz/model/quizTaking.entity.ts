@@ -1,7 +1,9 @@
 import { UUID } from 'crypto';
 import { Column, CreatedAt, DataType, HasOne, Model, PrimaryKey, Table, UpdatedAt } from 'sequelize-typescript';
 import { z } from 'zod';
-import { Quiz } from './quiz';
+import { Quiz } from './quiz.entity';
+import { createZodDto } from 'nestjs-zod';
+import { ApiPropertyOptional, ApiResponseProperty } from '@nestjs/swagger';
 
 export const takeQuizReqSchema = z.object({
   userEmail: z.string().email(),
@@ -32,6 +34,7 @@ export class QuizTaking extends Model<QuizTakingAttributes, CreateQuizTakingAttr
   userEmail: string;
 
   @HasOne(() => Quiz, 'id')
+  @ApiPropertyOptional()
   quiz: Quiz;
 
   @Column({ type: DataType.JSON })
@@ -55,4 +58,13 @@ export const answerQuizQuestionActionSchema = z.object({
   selectedAnswerIndex: z.number().min(0),
 });
 
-export type AnswerQuizQuestionActionType = z.infer<typeof answerQuizQuestionActionSchema>;
+export class AnswerQuizQuestionActionType extends createZodDto(answerQuizQuestionActionSchema) {}
+
+export class AnswerQuizQuestionResponse {
+  public newTotalScore: number;
+  public correct: boolean;
+  constructor(newTotalScore: number, correct: boolean) {
+    this.newTotalScore = newTotalScore;
+    this.correct = correct;
+  }
+}

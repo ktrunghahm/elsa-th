@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_PIPE } from '@nestjs/core';
 import { SequelizeModule } from '@nestjs/sequelize';
 import configuration from 'config/configuration';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthenModule } from './authen/authen.module';
 import { QuizModule } from './quiz/quiz.module';
-import { Quiz } from './quiz/model/quiz';
-import { QuizTaking } from './quiz/model/quizTaking';
-import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
@@ -25,6 +24,11 @@ import { CacheModule } from '@nestjs/cache-manager';
     }),
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    {
+      provide: APP_PIPE,
+      useClass: ZodValidationPipe,
+    },
+  ],
 })
 export class AppModule {}

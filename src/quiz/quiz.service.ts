@@ -1,3 +1,4 @@
+import { Cache } from '@nestjs/cache-manager';
 import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/sequelize';
@@ -8,11 +9,10 @@ import { Transaction } from 'sequelize';
 import { Sequelize } from 'sequelize-typescript';
 import { IllegalActionError } from 'src/common/error';
 import { QUESTION_ANSWERED } from 'src/common/redis';
-import { Leaderboard, leaderboardContentSchema } from './model/leaderboard';
-import { Quiz, QuizContentType } from './model/quiz';
-import { AnswerQuizQuestionActionType, QuizTaking } from './model/quizTaking';
+import { Leaderboard, leaderboardContentSchema } from './model/leaderboard.entity';
+import { Quiz, QuizContentType, QuizForUser } from './model/quiz.entity';
+import { AnswerQuizQuestionActionType, AnswerQuizQuestionResponse, QuizTaking } from './model/quizTaking.entity';
 import { LEADERBOARD_LIMIT } from './quiz.constants';
-import { Cache } from '@nestjs/cache-manager';
 
 @Injectable()
 export class QuizService {
@@ -129,7 +129,7 @@ export class QuizService {
           }
 
           await quizTaking.save({ transaction });
-          return { newTotalScore, correct };
+          return new AnswerQuizQuestionResponse(newTotalScore, correct);
         },
       );
       const listeners = await this.redisClient.publish(quizId, QUESTION_ANSWERED);
@@ -150,27 +150,24 @@ export class QuizService {
       throw new HttpException(`Not joined or cannot find quizId: ${quizId}`, HttpStatus.BAD_REQUEST);
     }
 
-    return {
-      quizId,
-      answers: quizTaking.answers,
-      totalScore: quizTaking.totalScore,
-      joinedAt: quizTaking.createdAt,
-      lastActionAt: quizTaking.updatedAt,
-
-      // strip off the answer property in each question's options when the question is not yet answered
-      quiz: {
-        name: quizTaking.quiz.name,
-        content: {
-          questions: quizTaking.quiz.content.questions.map((question, i) => ({
-            text: question.text,
-            options: question.options.map((option) => ({
-              text: option.text,
-              answer: quizTaking.answers[i] !== undefined ? option.answer : null,
-            })),
-          })),
-        },
-      },
+    const retval = new QuizForUser();
+    retval.quizId = quizId;
+    retval.answers = quizTaking.answers;
+    retval.totalScore = quizTaking.totalScore;
+    retval.joinedAt = quizTaking.createdAt;
+    retval.lastActionAt = quizTaking.updatedAt;
+    retval.quiz = {
+      name: quizTaking.quiz.name,
+      content: quizTaking.quiz.content.questions.map((question, i) => ({
+        text: question.text,
+        options: question.options.map((option) => ({
+          text: option.text,
+          answer: quizTaking.answers[i] !== undefined ? option.answer : null,
+        })),
+      })),
     };
+
+    return retval;
   }
 
   async listTakingQuizzesForUser(userEmail: string) {
